@@ -13,9 +13,7 @@ cols = []
 wordPoints = []
 
 def search2D(puzzle, row, col, word):
-    '''
-    Helper function that searches puzzle in all 8 directions
-    '''
+    ''' Helper function that searches puzzle in all 8 directions. '''
 
     global x, y, rows, cols, wordPoints
     #if first character of word does not match given starting point
@@ -66,8 +64,9 @@ def search2D(puzzle, row, col, word):
 def searchWord(puzzle, word, rows, cols, wordCoordinates):
     '''
     Searches for individual words using an array made of rows of letters from
-    the puzzle
+    the puzzle.
     '''
+
     for row in range(rows):
         for col in range(cols):
             if search2D(puzzle, row, col, word):
@@ -78,9 +77,8 @@ def searchWord(puzzle, word, rows, cols, wordCoordinates):
 
 
 def get_bounding_rectangles(im):
-    '''
-    Mozularize image by making rectangular blobs for each section of text
-    '''
+    ''' Mozularize image by making rectangular blobs for each section of text. '''
+
     # find edges
     edges = cv2.Canny(im,100,200)
 
@@ -101,8 +99,9 @@ def get_bounding_rectangles(im):
 def convert_to_text(rects, im):
     '''
     Read text found in each rectangle of text and determine which rectangle is
-    the puzzle and which are the words to find
+    the puzzle and which are the words to find.
     '''
+
     compareVal = 0
     currentArea = 0
     words = []
@@ -147,9 +146,8 @@ def convert_to_text(rects, im):
 
 
 def solve_puzzle(words, puzzle):
-    '''
-    Convert puzzle and words into arrays and solve the puzzle
-    '''
+    ''' Convert puzzle and words into arrays and solve the puzzle. '''
+
     global x, y, rows, cols
     rows = len(puzzle)
     cols = len(puzzle[0])
@@ -167,18 +165,21 @@ def solve_puzzle(words, puzzle):
 def draw_lines(puzzleRect, wordCoordinates, im, puzzle):
     '''
     Map position of words found in array to their position in the image and
-    draw lines where they were found
+    draw lines where they were found.
     '''
-    numRows = len(puzzle) + 1
-    numCols = len(puzzle[0]) + 1
-    incrementX = ((puzzleRect[0] + puzzleRect[2])-puzzleRect[0])/numCols
-    incrementY = ((puzzleRect[1] + puzzleRect[3])-puzzleRect[1])/numRows
+
+    numRows = len(puzzle)
+    numCols = len(puzzle[0])
+    incrementX = puzzleRect[2]/numCols # width/cols
+    incrementY = puzzleRect[3]/numRows # height/rows
 
     im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
     for coordinate in wordCoordinates:
-        p1 = (puzzleRect[0] + coordinate[1]*(incrementX+2), puzzleRect[1] + coordinate[0]*(incrementY+2))
-        p2 = (puzzleRect[0] + coordinate[2][1]*(incrementX+2), puzzleRect[1] + coordinate[2][0]*(incrementY+2))
-        cv2.line(im, p1, p2, (0, 0, 255), 1)
+        # x = origin + number of cols + half a column
+        # y = origin + number of rows + half a row
+        p1 = (puzzleRect[0] + (coordinate[1]*incrementX) + (incrementX/2), puzzleRect[1] + (coordinate[0]*incrementY) + (incrementY/2))
+        p2 = (puzzleRect[0] + (coordinate[2][1]*incrementX) + (incrementX/2), puzzleRect[1] + (coordinate[2][0]*incrementY) + (incrementY/2))
+        cv2.arrowedLine(im, p1, p2, (0, 0, 255), 1)
     cv2.imshow('im', im)
     cv2.waitKey(0)
 
@@ -192,24 +193,29 @@ def main():
 
     # read image with words to find and resize for standarized data set
     im = cv2.imread("imgs/" + args['puzzleImage'],0)
-    im = cv2.resize(im, (600, 800))
+    im = cv2.resize(im, (600, 700))
+    final_im = im.copy()
 
     rects = get_bounding_rectangles(im)
 
     words, puzzle, puzzleRect = convert_to_text(rects, im)
 
-    print words
-    print '\n'
-    for row in puzzle:
-        print row
-    print '\n'
+    # print words
+    # print '\n'
+    # for row in puzzle:
+    #     print row
+    # print '\n'
 
     wordCoordinates = solve_puzzle(words, puzzle)
-
-    draw_lines(puzzleRect, wordCoordinates, im, puzzle)
     print("\nNumber of Words: {}".format(len(words)))
     print("Number of Words Found: {}".format(len(wordCoordinates)))
+
+    draw_lines(puzzleRect, wordCoordinates, final_im, puzzle)
+
 
 
 if __name__ == "__main__":
     main()
+
+#TODO:
+#    - check out markerless ar "rendering 3d object" commit" for 3d lines
