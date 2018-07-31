@@ -193,7 +193,7 @@ def main():
 
     # read image with words to find and resize for standarized data set
     im = cv2.imread("imgs/" + args['puzzleImage'],0)
-    im = cv2.resize(im, (600, 700))
+    im = cv2.resize(im, (600, 800))
     final_im = im.copy()
 
     rects = get_bounding_rectangles(im)
