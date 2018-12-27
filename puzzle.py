@@ -75,6 +75,11 @@ def searchWord(puzzle, word, rows, cols, wordCoordinates):
 
     return "Word not found"
 
+def reject_outliers(data, m = 2.):
+    d = np.abs(data - np.median(data))
+    mdev = np.median(d)
+    s = d/mdev if mdev else 0.
+    return data[s<m]
 
 def get_bounding_rectangles(im):
     ''' Mozularize image by making rectangular blobs for each section of text. '''
@@ -85,14 +90,36 @@ def get_bounding_rectangles(im):
     # dilate to form blocks
     kernel = np.ones((4,4), np.uint8)
     dilation = cv2.dilate(edges, kernel, iterations=5)
-    # cv2.imshow('im', dilation)
-    # cv2.waitKey(0)
+    cv2.imshow('dilated', dilation)
+    cv2.waitKey(0)
 
     # find contours
     ctrs, hier = cv2.findContours(dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # get rectangles containing each contour
     rects = [cv2.boundingRect(ctr) for ctr in ctrs]
+
+    # sort from smallest to largest area    
+    rects.sort(key=lambda x: ( (x[0] + x[2]) - x[0] )*( (x[1] + x[3]) - x[1] ))
+    # list of areas
+    rect_areas = [( (x[0] + x[2]) - x[0] )*( (x[1] + x[3]) - x[1] ) for x in rects]
+
+    # find outliers
+    data = np.asarray(rect_areas)
+    data = reject_outliers(data).tolist()
+
+    # filter outliers
+    indeces = []
+    for x in data:
+        indeces.append(rect_areas.index(x))    
+    filtered_rects = []
+    for x in indeces:
+        filtered_rects.append(rects[x])
+
+    # append the puzzle, which should be the largest rectangle
+    filtered_rects.append(rects[-1])
+    rects = filtered_rects
+
     return rects
 
 
@@ -115,6 +142,8 @@ def convert_to_text(rects, im):
 
         # draw the rectangles
         cv2.rectangle(im, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (0, 255, 0), 3)
+        cv2.imshow('blocks found', im)
+        cv2.waitKey(0)
 
         # crop out each rectangle found
         crop = im[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]]
@@ -180,7 +209,7 @@ def draw_lines(puzzleRect, wordCoordinates, im, puzzle):
         p1 = (puzzleRect[0] + (coordinate[1]*incrementX) + (incrementX/2), puzzleRect[1] + (coordinate[0]*incrementY) + (incrementY/2))
         p2 = (puzzleRect[0] + (coordinate[2][1]*incrementX) + (incrementX/2), puzzleRect[1] + (coordinate[2][0]*incrementY) + (incrementY/2))
         cv2.arrowedLine(im, p1, p2, (0, 0, 255), 1)
-    cv2.imshow('im', im)
+    cv2.imshow('solved puzzle', im)
     cv2.waitKey(0)
 
 
@@ -192,8 +221,13 @@ def main():
     args = vars(ap.parse_args())
 
     # read image with words to find and resize for standarized data set
-    im = cv2.imread("imgs/" + args['puzzleImage'],0)
+    im = cv2.imread("imgs/" + args['puzzleImage'],0)   
     im = cv2.resize(im, (600, 800))
+
+    # ret, im = cv2.threshold(im, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    # cv2.imshow('binary', im)
+    # cv2.waitKey(0)
+
     final_im = im.copy()
 
     rects = get_bounding_rectangles(im)
